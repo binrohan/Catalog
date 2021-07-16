@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mime;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Catalog.Repositories;
 using Catalog.Settings;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -39,16 +43,15 @@ namespace Catalog
             BsonSerializer.RegisterSerializer(new GuidSerializer(BsonType.String));
             // Converting DateTimeOffsetSerializer => string
             BsonSerializer.RegisterSerializer(new DateTimeOffsetSerializer(BsonType.String));
+            // MongoDbSettings from appsettings.json file and Map it to the MongoDbSettings class
+            var mongoDbSettings = Configuration.GetSection(nameof(MongoDbSettings)).Get<MongoDbSettings>();
 
             // Configuration for mongodb
             // Adding mongodb connection string
             services.AddSingleton<IMongoClient>(servicesProvider => 
             {
-                var settings = Configuration
-                    .GetSection(nameof(MongoDbSettings))
-                    .Get<MongoDbSettings>();
-
-                return new MongoClient(settings.ConnectionString);
+                // Connecting mongodb to the backend
+                return new MongoClient(mongoDbSettings.ConnectionString);
             });
 
             // Registering the service
@@ -63,6 +66,15 @@ namespace Catalog
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Catalog", Version = "v1" });
             });
+
+            // Connection check of REST API
+            services.AddHealthChecks()
+                // Mongodb connection healthcheck configuration
+                .AddMongoDb(
+                    mongoDbSettings.ConnectionString, 
+                    name: "mongodb", 
+                    timeout: TimeSpan.FromSeconds(3),
+                    tags: new [] {"ready"});
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -84,6 +96,38 @@ namespace Catalog
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+
+                // Setup health check route
+                // Is Server ready check config
+                endpoints.MapHealthChecks("/heath/ready", new HealthCheckOptions{
+                    Predicate = (check) => check.Tags.Contains("ready"),
+                    // Customizing the heath check response
+                    ResponseWriter = async(context, report) => 
+                    {
+                        var result = JsonSerializer.Serialize
+                        (
+                            new
+                            {
+                                status = report.Status.ToString(),
+                                checks = report.Entries.Select(entry => new 
+                                {
+                                    name = entry.Key,
+                                    status = entry.Value.Status.ToString(),
+                                    exception = entry.Value.Exception != null 
+                                        ? entry.Value.Exception.Message
+                                        : "none",
+                                    duration = entry.Value.Duration.ToString()
+                                })
+                            }
+                        );
+                        context.Response.ContentType = MediaTypeNames.Application.Json;
+                        await context.Response.WriteAsync(result);
+                    }
+                });
+                // Is server alive check config
+                endpoints.MapHealthChecks("/heath/live", new HealthCheckOptions{
+                    Predicate = (_) => false
+                });
             });
         }
     }
