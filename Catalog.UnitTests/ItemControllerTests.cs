@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
+using Catalog.Api;
 using Catalog.Api.Controllers;
-using Catalog.Api.Dtos;
 using Catalog.Api.Models;
 using Catalog.Api.Repositories;
 using FluentAssertions;
@@ -51,7 +51,7 @@ namespace Catalog.UnitTests
             var result = await controller.GetItemAsync(Guid.NewGuid());
 
             // Assert
-            result.Value.Should().BeEquivalentTo(expectedItem, options => options.ComparingByMembers<Item>());
+            result.Value.Should().BeEquivalentTo(expectedItem);
         }
 
         [Fact]
@@ -69,18 +69,14 @@ namespace Catalog.UnitTests
             var actualItems = await controller.GetItemsAsync();
 
             // Assert
-            actualItems.Should().BeEquivalentTo(expectedItems, options => options.ComparingByMembers<Item>());
+            actualItems.Should().BeEquivalentTo(expectedItems);
         }
 
         [Fact]
         public async Task CreateItemAsync_WithItemToCreate_ReturnsCreatedItems()
         {
             // Arrange
-            var itemToCreate = new CreateItemDto()
-            {
-                Name = Guid.NewGuid().ToString(),
-                Price = rand.Next(1000)
-            };
+            var itemToCreate = new CreateItemDto(Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), rand.Next(1000));
 
             var controller = new ItemsController(repositoryStub.Object, loggerStub.Object);
 
@@ -105,7 +101,7 @@ namespace Catalog.UnitTests
             var controller = new ItemsController(repositoryStub.Object, loggerStub.Object);
 
             // Act
-            var result = await controller.UpdateItemAsync(Guid.NewGuid(), new UpdateItemDto{Name = Guid.NewGuid().ToString(), Price = rand.Next()});
+            var result = await controller.UpdateItemAsync(Guid.NewGuid(), new UpdateItemDto(Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), rand.Next()));
 
             // Assert
             result.Should().BeOfType<NotFoundResult>();
@@ -116,7 +112,7 @@ namespace Catalog.UnitTests
         {
             // Arrange
             var existingItem = CreateRandomItem();
-            var itemToUpdate = new UpdateItemDto{Name = Guid.NewGuid().ToString(), Price = existingItem.Price + 3};
+            var itemToUpdate = new UpdateItemDto(Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), existingItem.Price + 3);
             var itemId = existingItem.Id;
 
             repositoryStub.Setup(repo => repo.GetItemAsync(It.IsAny<Guid>()))

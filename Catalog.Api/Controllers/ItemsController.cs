@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Catalog.Api.Dtos;
 using Catalog.Api.Models;
 using Catalog.Api.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -56,6 +55,7 @@ namespace Catalog.Api.Controllers
             {
                 Id = Guid.NewGuid(),
                 Name = itemDto.Name,
+                Description = itemDto.Description,
                 Price = itemDto.Price,
                 CreatedDate = DateTimeOffset.UtcNow
             };
@@ -76,13 +76,10 @@ namespace Catalog.Api.Controllers
                 return NotFound();
             }
 
-            Item updatedItem = itemInDb with
-            {
-                Name = itemDto.Name,
-                Price = itemDto.Price,
-            };
+            itemInDb.Name = itemDto.Name;
+            itemInDb.Price = itemDto.Price;
 
-            await _repository.UpdatedItemAsync(updatedItem);
+            await _repository.UpdatedItemAsync(itemInDb);
 
             return NoContent();
         }
