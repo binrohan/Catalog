@@ -1,6 +1,6 @@
 using System;
 
-namespace Catalog.Models
+namespace Catalog.Api.Models
 {
     public record Item
     {

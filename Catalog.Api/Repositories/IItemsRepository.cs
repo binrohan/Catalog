@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Catalog.Models;
+using Catalog.Api.Models;
 
-namespace Catalog.Repositories
+namespace Catalog.Api.Repositories
 {
     public interface IItemsRepository
     {
